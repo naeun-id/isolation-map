@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내성균 격리환자 현황 — 인천나은병원</title>
+<style>
+  /* ── 기본 ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0a0e1a;
+    --surface:  #111827;
+    --border:   rgba(255,255,255,0.08);
+    --primary:  #00c8ff;
+    --danger:   #ff4466;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --radius:   12px;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .logo { font-size: 15px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+  .logo span { color: var(--text); font-weight: 400; font-size: 13px; }
+  .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 20px;
+    background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+    color: var(--primary); white-space: nowrap;
+  }
+
+  /* ── 탭 ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .tab-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .tab-btn.active {
+    color: var(--primary);
+    background: rgba(0,200,255,0.08);
+    border-color: rgba(0,200,255,0.3);
+  }
+
+  /* ── iframe 컨테이너 ── */
+  .map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .map-frame.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── 비밀번호 오버레이 ── */
+  #lock-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .lock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 44px 40px;
+    width: min(380px, 90vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  }
+  .lock-icon { font-size: 40px; }
+  .lock-title {
+    text-align: center;
+    line-height: 1.5;
+  }
+  .lock-title h1 { font-size: 18px; font-weight: 700; color: var(--primary); }
+  .lock-title p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .lock-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pw-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 16px;
+    color: var(--text);
+    outline: none;
+    text-align: center;
+    letter-spacing: 3px;
+    transition: border-color 0.2s;
+  }
+  .pw-input:focus { border-color: var(--primary); }
+  .pw-input.error { border-color: var(--danger); animation: shake 0.3s; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+  }
+  .pw-btn {
+    width: 100%;
+    background: var(--primary);
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .pw-btn:hover { opacity: 0.85; }
+  .err-msg {
+    font-size: 12px;
+    color: var(--danger);
+    text-align: center;
+    min-height: 16px;
+  }
+  .lock-footer { font-size: 11px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- 비밀번호 오버레이 -->
+<div id="lock-overlay">
+  <div class="lock-card">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">
+      <h1>내성균 격리환자 현황</h1>
+      <p>인천나은병원 감염관리실</p>
+    </div>
+    <div class="lock-form">
+      <input class="pw-input" id="pw-input" type="password"
+             placeholder="비밀번호 입력" autocomplete="off"
+             onkeydown="if(event.key==='Enter')tryUnlock()">
+      <button class="pw-btn" onclick="tryUnlock()">확인</button>
+      <div class="err-msg" id="err-msg"></div>
+    </div>
+    <div class="lock-footer">권한이 있는 의료진만 접근 가능합니다</div>
+  </div>
+</div>
+
+<!-- 메인 UI -->
+<header>
+  <div class="header-left">
+    <div class="logo">인천나은병원 <span>· 내성균(AMR) 격리환자 현황</span></div>
+    <div class="badge">감시 모드 포함</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('flat')">🗺 평면 지도</button>
+    <button class="tab-btn"        onclick="switchTab('3d')">🏢 입체 지도</button>
+  </div>
+</header>
+
+<div class="map-container">
+  <iframe id="frame-flat" class="map-frame active" src="" title="평면 지도"></iframe>
+  <iframe id="frame-3d"   class="map-frame"        src="" title="입체 지도"></iframe>
+</div>
+
+<script>
+  // ── 비밀번호 설정 (변경 시 이 값만 수정) ──
+  const PASSWORD = 'naeun2026';
+  const SESSION_KEY = 'naeun_amr_auth';
+
+  function tryUnlock() {
+    const val = document.getElementById('pw-input').value;
+    const inp = document.getElementById('pw-input');
+    const err = document.getElementById('err-msg');
+    if (val === PASSWORD) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('lock-overlay').style.display = 'none';
+      loadFrames();
+    } else {
+      err.textContent = '비밀번호가 올바르지 않습니다';
+      inp.classList.add('error');
+      inp.value = '';
+      setTimeout(() => inp.classList.remove('error'), 400);
+    }
+  }
+
+  function loadFrames() {
+    document.getElementById('frame-flat').src = 'flat.html';
+    document.getElementById('frame-3d').src   = '3d.html';
+  }
+
+  // 탭 전환
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) =>
+      b.classList.toggle('active', (i===0&&tab==='flat')||(i===1&&tab==='3d')));
+    document.getElementById('frame-flat').classList.toggle('active', tab==='flat');
+    document.getElementById('frame-3d').classList.toggle('active',   tab==='3d');
+  }
+
+  // 세션 유지 확인
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('lock-overlay').style.display = 'none';
+    loadFrames();
+  }
+</script>
+</body>
+</html>

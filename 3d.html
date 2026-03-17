@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인천나은병원 3D · 격리환자 현황 (2026-02-27)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --border: #1e2d45;
+    --accent: #00c6ff;
+    --accent2: #4fffb0;
+    --danger: #ff4444;
+    --danger-glow: rgba(255,68,68,0.35);
+    --warn: #ffaa00;
+    --warn2: #ff6600;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ══ 사이드바 ══ */
+  #sidebar {
+    width: 310px;
+    min-width: 310px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #sidebar-header {
+    padding: 16px 18px 12px;
+    background: linear-gradient(135deg, #0a1628, #112244);
+    border-bottom: 1px solid var(--border);
+  }
+  #sidebar-header h1 { font-size: 14px; font-weight: 700; color: var(--accent); line-height: 1.4; }
+  #sidebar-header p  { font-size: 10px; color: var(--muted); margin-top: 3px; font-family:'DM Mono',monospace; }
+
+  /* 날짜 네비게이션 */
+  #date-nav { display:flex; align-items:center; gap:6px; margin-top:10px; }
+  .date-btn3d {
+    background: rgba(0,198,255,0.1); border: 2px solid rgba(0,198,255,0.55);
+    color: var(--accent); border-radius: 6px; padding: 5px 12px;
+    font-size: 16px; font-weight: 900; cursor: pointer; transition: .15s; line-height: 1;
+  }
+  .date-btn3d:hover:not(:disabled) { background: rgba(0,198,255,0.22); border-color: var(--accent); }
+  .date-btn3d:disabled { opacity: .2; cursor: default; }
+  #date-label3d { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--accent); }
+
+  /* 탭 */
+  #mode-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: #0d1520;
+  }
+  .mtab {
+    flex:1; padding: 9px 4px; font-size: 11px; font-weight:500;
+    text-align:center; cursor:pointer; color:var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .mtab.active { color: var(--accent); border-color: var(--accent); background: rgba(0,198,255,0.06); }
+  .mtab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.04); }
+  .mtab.danger.active { color: var(--danger); border-color: var(--danger); background: rgba(255,68,68,0.06); }
+
+  /* 건물 탭 */
+  #building-tabs { display:flex; border-bottom:1px solid var(--border); }
+  .btab {
+    flex:1; padding: 8px 4px; font-size:11px; font-weight:500;
+    text-align:center; cursor:pointer; color:var(--muted);
+    border-bottom: 2px solid transparent; transition:all 0.2s;
+  }
+  .btab.active { color:var(--accent); border-color:var(--accent); background:rgba(0,198,255,0.06); }
+  .btab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.04); }
+
+  /* 층 목록 */
+  #floor-list {
+    flex:1; overflow-y:auto; padding:6px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+  .floor-item {
+    display:flex; align-items:flex-start; gap:8px;
+    padding:8px 10px; border-radius:8px; cursor:pointer;
+    transition:all 0.15s; margin-bottom:3px; border:1px solid transparent;
+    position:relative;
+  }
+  .floor-item:hover { background:rgba(255,255,255,0.05); border-color:var(--border); }
+  .floor-item.selected { background:rgba(0,198,255,0.08); border-color:rgba(0,198,255,0.35); }
+  .floor-item.has-amr { border-left: 3px solid var(--danger) !important; padding-left:8px; }
+  .floor-badge {
+    font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+    min-width:34px; height:20px; display:flex; align-items:center; justify-content:center;
+    border-radius:4px; border:1px solid; margin-top:1px; flex-shrink:0;
+  }
+  .floor-item.main .floor-badge { color:var(--accent); border-color:rgba(0,198,255,0.4); background:rgba(0,198,255,0.1); }
+  .floor-item.west .floor-badge { color:var(--accent2); border-color:rgba(79,255,176,0.4); background:rgba(79,255,176,0.08); }
+  .floor-content { flex:1; min-width:0; }
+  .floor-content .floor-name { font-size:11px; font-weight:500; color:var(--text); }
+  .floor-content .floor-dept { font-size:10px; color:var(--muted); line-height:1.5; margin-top:1px; }
+
+  /* AMR 배지 */
+  .amr-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    background: rgba(255,68,68,0.15); border:1px solid rgba(255,68,68,0.4);
+    border-radius:4px; padding:1px 5px; font-size:9px; color:var(--danger);
+    font-family:'DM Mono',monospace; white-space:nowrap; margin-top:3px;
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+  @keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  /* 하단 패널 */
+  #bottom-panel {
+    border-top: 1px solid var(--border);
+    background: #0d1520;
+    display: flex;
+    flex-direction: column;
+    max-height: 200px;
+  }
+  #info-panel {
+    padding: 10px 14px 8px;
+    font-size:11px; color:var(--muted); line-height:1.6;
+    border-bottom: 1px solid var(--border);
+  }
+  #info-panel strong { color:var(--accent); display:block; margin-bottom:4px; font-size:11px; }
+
+  /* AMR 입력 패널 */
+  #amr-panel {
+    padding: 10px 14px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #amr-panel.visible { display: flex; }
+  #amr-panel label { font-size: 11px; color: var(--muted); margin-bottom:2px; display:block; }
+  #amr-panel input, #amr-panel select {
+    background: #0a0e1a; border: 1px solid var(--border);
+    color: var(--text); border-radius:5px; padding:5px 8px;
+    font-size:11px; font-family:'Noto Sans KR',sans-serif; width:100%;
+    outline:none; transition:border-color 0.2s;
+  }
+  #amr-panel input:focus, #amr-panel select:focus { border-color: var(--danger); }
+  .amr-row { display:flex; gap:6px; }
+  .amr-row > * { flex:1; }
+  .btn-add-amr {
+    background: rgba(255,68,68,0.15); border:1px solid var(--danger);
+    color:var(--danger); border-radius:5px; padding:6px; font-size:11px;
+    cursor:pointer; font-family:'Noto Sans KR',sans-serif; font-weight:500;
+    transition:all 0.15s; width:100%;
+  }
+  .btn-add-amr:hover { background:rgba(255,68,68,0.3); }
+
+  /* AMR 목록 */
+  #amr-list {
+    max-height: 160px; overflow-y:auto; padding:6px 8px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+    display: none;
+  }
+  #amr-list.visible { display:block; }
+  .amr-list-title {
+    font-size:10px; color:var(--muted); font-family:'DM Mono',monospace;
+    margin-bottom:5px; letter-spacing:0.5px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .amr-list-title span { color:var(--danger); }
+  .amr-entry {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 8px; border-radius:6px; margin-bottom:3px;
+    background: rgba(255,68,68,0.07); border:1px solid rgba(255,68,68,0.2);
+    gap:8px;
+  }
+  .amr-entry-left { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+  .amr-entry-room { font-size:11px; font-weight:500; color:var(--text); }
+  .amr-entry-bug  { font-size:10px; color:var(--danger); font-family:'DM Mono',monospace; }
+  .amr-entry-note { font-size:10px; color:var(--muted); }
+  .amr-del {
+    background:none; border:none; cursor:pointer; color:var(--muted);
+    font-size:14px; padding:2px 4px; transition:color 0.15s; flex-shrink:0;
+  }
+  .amr-del:hover { color:var(--danger); }
+
+  /* AMR 통계 */
+  #amr-stats {
+    display:none; padding: 8px 14px;
+    border-top:1px solid var(--border);
+    flex-direction: column; gap: 6px;
+  }
+  #amr-stats.visible { display:flex; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; }
+  .stat-label { font-size:10px; color:var(--muted); }
+  .stat-val   { font-size:11px; font-weight:600; font-family:'DM Mono',monospace; color:var(--danger); }
+
+  /* ══ 캔버스 영역 ══ */
+  #canvas-area {
+    flex:1; position:relative; overflow:hidden;
+    background: radial-gradient(ellipse at 30% 30%, #0d1f3a 0%, #060b14 70%);
+  }
+  canvas { display:block; }
+
+  /* 컨트롤 */
+  #controls {
+    position:absolute; bottom:20px; right:20px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .ctrl-btn {
+    width:36px; height:36px;
+    border:1px solid var(--border); background:rgba(10,14,26,0.85);
+    color:var(--text); border-radius:8px; cursor:pointer; font-size:15px;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s; backdrop-filter:blur(10px);
+  }
+  .ctrl-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* 레전드 */
+  #legend {
+    position:absolute; top:14px; right:14px;
+    background:rgba(10,14,26,0.88); border:1px solid var(--border);
+    border-radius:10px; padding:11px 13px; font-size:11px;
+    backdrop-filter:blur(10px);
+  }
+  #legend .leg-title { color:var(--muted); margin-bottom:7px; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.5px; }
+  .leg-item { display:flex; align-items:center; gap:7px; margin-bottom:4px; color:var(--text); font-size:11px; }
+  .leg-dot  { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+  .leg-circle { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+
+  /* tooltip */
+  #tooltip {
+    position:absolute; background:rgba(8,12,24,0.96);
+    border:1px solid var(--accent); border-radius:8px;
+    padding:9px 13px; font-size:11px; pointer-events:none;
+    display:none; backdrop-filter:blur(10px); max-width:230px; line-height:1.6;
+    z-index:100;
+  }
+  #tooltip.amr-tip { border-color:var(--danger); }
+  #tooltip strong { color:var(--accent); display:block; margin-bottom:3px; }
+  #tooltip.amr-tip strong { color:var(--danger); }
+
+  /* AMR tooltip 특별 스타일 */
+  .tip-bug  { color:var(--danger); font-family:'DM Mono',monospace; font-weight:500; }
+  .tip-room { color:var(--warn); }
+  .tip-iso  { color:#aaa; font-size:10px; }
+
+  #instruction {
+    position:absolute; bottom:20px; left:20px;
+    font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; line-height:1.9;
+  }
+
+  /* AMR 알림 배너 */
+  #amr-banner {
+    position:absolute; top:14px; left:14px;
+    background:rgba(10,14,26,0.82); border:1px solid rgba(255,68,68,0.4);
+    border-radius:10px; padding:10px 14px; font-size:11px;
+    display:none; flex-direction:column; gap:7px; max-width:340px;
+    backdrop-filter:blur(12px);
+    animation: banner-pulse 2.5s ease-in-out infinite;
+  }
+  #amr-banner.visible { display:flex; }
+  @keyframes banner-pulse { 0%,100%{border-color:rgba(255,68,68,0.4)} 50%{border-color:rgba(255,68,68,0.9)} }
+  #amr-banner .brow1 { display:flex; align-items:center; gap:8px; }
+  #amr-banner .bicon { font-size:16px; }
+  #amr-banner .btext { color:var(--text); line-height:1.4; }
+  #amr-banner .btext b { color:var(--danger); }
+  #bug-tags { display:flex; flex-wrap:wrap; gap:4px; }
+  .bug-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;
+    font-family:'DM Mono',monospace; border:1px solid;
+  }
+  .bug-tag .btcount { font-size:11px; font-weight:700; }
+
+  #amr-banner { flex-direction:column !important; gap:7px !important; max-width:360px !important; }
+  #amr-banner .brow1 { display:flex; align-items:center; gap:8px; }
+  #bug-tags { display:flex; flex-wrap:wrap; gap:4px; }
+  .bug-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 7px;
+    border-radius:4px; font-size:10px; font-weight:600; border:1px solid; }
+  .bug-tag .btcount { font-size:11px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<!-- ══ 사이드바 ══ -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>🏥 인천나은병원 · 3D 층별 구조<br><span style="font-size:11px;color:#ff8888">⚠ 내성균(AMR) 감시 모드 포함</span></h1>
+    <p>LUGA Medical Foundation · 2026</p>
+    <div id="date-nav">
+      <button class="date-btn3d" id="btn-prev-date">◀</button>
+      <span id="date-label3d"></span>
+      <button class="date-btn3d" id="btn-next-date">▶</button>
+    </div>
+  </div>
+
+  <div id="mode-tabs">
+    <div class="mtab active" data-mode="floor">🗺 층별 안내</div>
+    <div class="mtab danger" data-mode="amr">🦠 내성균 등록</div>
+    <div class="mtab danger" data-mode="amrlist">📋 환자 목록</div>
+  </div>
+
+  <!-- 층별 안내 패널 -->
+  <div id="panel-floor" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+    <div id="building-tabs">
+      <div class="btab active" data-bld="main">본관 (A·B동)</div>
+      <div class="btab" data-bld="west">서관</div>
+    </div>
+    <div id="floor-list"></div>
+  </div>
+
+  <!-- AMR 등록 패널 -->
+  <div id="panel-amr" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:12px;">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+      내성균 확인 환자의 위치를 등록하면<br>3D 화면에 붉은 점으로 표시됩니다.
+    </div>
+    <label style="font-size:11px;color:var(--muted);margin-bottom:3px;">건물 / 층</label>
+    <div class="amr-row" style="margin-bottom:8px;">
+      <select id="amr-bld">
+        <option value="main">본관</option>
+        <option value="west">서관</option>
+      </select>
+      <select id="amr-floor"></select>
+    </div>
+    <label style="font-size:11px;color:var(--muted);margin-bottom:3px;">병실 번호</label>
+    <input id="amr-room" type="text" placeholder="예: 503, 821-1, ICU" style="margin-bottom:8px;">
+    <label style="font-size:11px;color:var(--muted);margin-bottom:3px;">균종 (AMR type)</label>
+    <select id="amr-bug" style="margin-bottom:8px;">
+      <option value="MRSA">MRSA (메티실린 내성 황색포도알균)</option>
+      <option value="VRE">VRE (반코마이신 내성 장구균)</option>
+      <option value="ESBL">ESBL 생성균</option>
+      <option value="CRE">CRE (카바페넴 내성 장내세균)</option>
+      <option value="CRPA">CRPA (카바페넴 내성 녹농균)</option>
+      <option value="CRAB">CRAB (카바페넴 내성 아시네토박터)</option>
+      <option value="VRSA">VRSA (반코마이신 내성 황색포도알균)</option>
+      <option value="MDR-TB">MDR-TB (다제내성 결핵)</option>
+      <option value="기타">기타 내성균</option>
+    </select>
+    <label style="font-size:11px;color:var(--muted);margin-bottom:3px;">비고 (선택)</label>
+    <input id="amr-note" type="text" placeholder="예: 접촉격리, 코호트격리" style="margin-bottom:10px;">
+    <button class="btn-add-amr" id="btn-add-amr">🦠 내성균 환자 등록</button>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">
+      ※ 이 기능은 감염관리 목적의 시각화 도구입니다.<br>실제 환자 개인정보는 입력하지 마십시오.
+    </div>
+  </div>
+
+  <!-- AMR 목록 패널 -->
+  <div id="panel-amrlist" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+    <div id="amr-list-container" style="flex:1;overflow-y:auto;padding:8px;">
+      <div id="amr-empty" style="text-align:center;padding:30px 10px;color:var(--muted);font-size:11px;">
+        등록된 내성균 환자가 없습니다.<br><br>
+        <span style="font-size:24px;">🦠</span><br><br>
+        '내성균 등록' 탭에서 추가하세요.
+      </div>
+      <div id="amr-entries"></div>
+    </div>
+    <div id="amr-stats">
+      <div class="amr-list-title">
+        <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;">SUMMARY</span>
+      </div>
+      <div class="stat-row"><span class="stat-label">총 등록 환자</span><span class="stat-val" id="stat-total">0</span></div>
+      <div class="stat-row"><span class="stat-label">영향 층 수</span><span class="stat-val" id="stat-floors">0</span></div>
+      <div class="stat-row"><span class="stat-label">가장 많은 균종</span><span class="stat-val" id="stat-topbug">—</span></div>
+    </div>
+  </div>
+
+  <!-- 공통 하단 정보 패널 -->
+  <div id="info-panel">
+    <strong>층을 선택하세요</strong>
+    3D 화면에서 층을 클릭하거나 목록에서 선택하세요.
+  </div>
+</div>
+
+<!-- ══ 3D 캔버스 ══ -->
+<div id="canvas-area">
+  <canvas id="c"></canvas>
+
+  <div id="amr-banner">
+    <div class="brow1"><span class="bicon">⚠️</span>
+      <div class="btext">격리환자 <b id="banner-count">0</b>명&nbsp;<span style="color:var(--muted);font-size:10px">(접촉·공기주의)</span></div>
+    </div>
+    <div id="bug-tags"></div>
+  </div>
+    </div>
+    <div id="bug-tags"></div>
+  </div>
+
+  <div id="legend">
+    <div class="leg-title">LEGEND</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#1e6ab5"></div>본관 A동</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#0d4a8a"></div>본관 B동</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#0d6e45"></div>서관</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#6d3fa5"></div>지하층</div>
+    <div style="border-top:1px solid #1e2d45;margin:6px 0"></div>
+    <div class="leg-item"><div class="leg-circle" style="background:#ff2222;box-shadow:0 0 8px #ff2222"></div>접촉주의 격리환자</div>
+    <div class="leg-item"><div class="leg-circle" style="background:#ff8800;box-shadow:0 0 8px #ff8800"></div>공기주의 격리환자</div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="resetBtn" title="시점 초기화">⟳</button>
+    <button class="ctrl-btn" id="explodeBtn" title="층 분리/합치기">⊞</button>
+    <button class="ctrl-btn" id="zoomInBtn">+</button>
+    <button class="ctrl-btn" id="zoomOutBtn">−</button>
+  </div>
+
+  <div id="instruction">드래그: 회전 · 스크롤: 확대/축소 · 클릭: 층/마커 선택</div>
+  <div id="tooltip"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════
+// 데이터
+// ══════════════════════════════════════════
+const MAIN_FLOORS = [
+  { id:'9F', label:'9F', name:'9층', dept:'하늘공원, 간호본부', color:0x1e6ab5 },
+  { id:'8F', label:'8F', name:'8층', dept:'B동: 간호·간병통합병동(820~827), 소아병동\nA동: 간호·간병통합병동(801~813)', color:0x1e6ab5 },
+  { id:'7F', label:'7F', name:'7층', dept:'B동: 재활치료센터\nA동: 재활 간호·간병통합병동(701~711)', color:0x1e6ab5 },
+  { id:'6F', label:'6F', name:'6층', dept:'B동: 간호·간병통합병동(621~635)\nA동: 간호·간병통합병동(601~613)', color:0x1e6ab5 },
+  { id:'5F', label:'5F', name:'5층', dept:'B동: 간호·간병통합병동(521~532)\nA동: 간호·간병통합병동(501~513)', color:0x1e6ab5 },
+  { id:'3F', label:'3F', name:'3층', dept:'B동: 간호·간병통합병동(320~329), 뇌졸중집중치료실, 수면다원검사실\nA동: 비뇨의학과, 영상의학과, 심장내과, 신장내과', color:0x1e6ab5 },
+  { id:'2F', label:'2F', name:'2층', dept:'B동: 혈관중재시술실, 외과계/내과계 중환자실\nA동: 수술센터', color:0x2680d0 },
+  { id:'1F', label:'1F', name:'1층', dept:'B동: 로비, 소화기내과, 신경외과, 신경과, 재활의학과, 내시경실\nA동: 정형외과, 심장혈관흉부외과, GS편의점, 카페', color:0x2e90e0 },
+  { id:'G1', label:'G1', name:'지상1(반지하)', dept:'B동: 응급의료센터, 음압격리실, 진단검사의학과\nA동: 약제부, 영양과, 중앙공급실', color:0x4a3880 },
+  { id:'B2', label:'B2', name:'지하2층', dept:'지하주차장', color:0x3a2860 },
+  { id:'B3', label:'B3', name:'지하3층', dept:'지하주차장', color:0x2a1845 },
+];
+
+const WEST_FLOORS = [
+  { id:'8F', label:'8F', name:'8층', dept:'병리과, 사회복지실', color:0x0d6e45 },
+  { id:'7F', label:'7F', name:'7층', dept:'간호·간병통합병동(721~725)', color:0x0d6e45 },
+  { id:'6F', label:'6F', name:'6층', dept:'이비인후과, 산부인과, 유방·갑상선외과, 정신건강의학과, 임상심리실', color:0x0d6e45 },
+  { id:'5F', label:'5F', name:'5층', dept:'피부과, 비만·탈모클리닉', color:0x0e8050 },
+  { id:'4F', label:'4F', name:'4층', dept:'안과', color:0x0e8050 },
+  { id:'3F', label:'3F', name:'3층', dept:'수술센터', color:0x1a9060 },
+  { id:'2F', label:'2F', name:'2층', dept:'접수·수납, 감염내과, 내분비내과, 소아청소년과, 주사실, 채혈실', color:0x1a9060 },
+  { id:'1F', label:'1F', name:'1층', dept:'주차장', color:0x1c6040 },
+  { id:'B1', label:'B1', name:'지하1층', dept:'공공의료본부, IRB, 첨단재생의료, 원무본부, 홍보팀', color:0x3a2860 },
+];
+
+// AMR 데이터 저장소
+let amrData = []; // { id, bld, floorId, room, bug, note, markerId }
+
+// ══════════════════════════════════════════
+// 사이드바 UI
+// ══════════════════════════════════════════
+let currentBuilding = 'main';
+let selectedFloor = null;
+let currentMode = 'floor';
+
+// 모드 탭
+document.querySelectorAll('.mtab').forEach(t => {
+  t.addEventListener('click', () => {
+    currentMode = t.dataset.mode;
+    document.querySelectorAll('.mtab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-floor').style.display   = currentMode==='floor'   ? 'flex' : 'none';
+    document.getElementById('panel-amr').style.display     = currentMode==='amr'     ? 'flex' : 'none';
+    document.getElementById('panel-amrlist').style.display = currentMode==='amrlist' ? 'flex' : 'none';
+    if (currentMode === 'amrlist') renderAmrList();
+  });
+});
+
+// 건물 탭
+document.querySelectorAll('.btab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.btab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentBuilding = t.dataset.bld;
+    selectedFloor = null;
+    renderFloorList(currentBuilding);
+    updateBuildingVisibility();
+    document.getElementById('info-panel').innerHTML = '<strong>층을 선택하세요</strong>클릭하면 상세 정보가 표시됩니다.';
+  });
+});
+
+// AMR 건물 선택 시 층 목록 갱신
+document.getElementById('amr-bld').addEventListener('change', function() {
+  populateFloorSelect(this.value);
+});
+function populateFloorSelect(bld) {
+  const sel = document.getElementById('amr-floor');
+  const floors = bld === 'main' ? MAIN_FLOORS : WEST_FLOORS;
+  sel.innerHTML = floors.map(f => `<option value="${f.id}">${f.label} — ${f.name}</option>`).join('');
+}
+populateFloorSelect('main');
+
+// 층 목록 렌더링
+function renderFloorList(bld) {
+  const list = document.getElementById('floor-list');
+  const floors = bld === 'main' ? MAIN_FLOORS : WEST_FLOORS;
+  list.innerHTML = '';
+  floors.forEach(f => {
+    const amrs = amrData.filter(a => a.bld === bld && a.floorId === f.id);
+    const el = document.createElement('div');
+    el.className = 'floor-item ' + bld + (amrs.length ? ' has-amr' : '');
+    el.dataset.id = f.id;
+    const amrBadge = amrs.length
+      ? `<div class="amr-badge">⬤ 내성균 ${amrs.length}건</div>` : '';
+    el.innerHTML = `
+      <div class="floor-badge">${f.label}</div>
+      <div class="floor-content">
+        <div class="floor-name">${f.name}</div>
+        <div class="floor-dept">${f.dept.replace(/\n/g,'<br>')}</div>
+        ${amrBadge}
+      </div>`;
+    el.addEventListener('click', () => selectFloor(f.id, bld));
+    list.appendChild(el);
+  });
+}
+
+function selectFloor(id, bld) {
+  currentBuilding = bld;
+  selectedFloor = id;
+  document.querySelectorAll('.floor-item').forEach(el => el.classList.remove('selected'));
+  const target = document.querySelector(`.floor-item[data-id="${id}"]`);
+  if (target) { target.classList.add('selected'); target.scrollIntoView({block:'nearest'}); }
+
+  const floors = bld==='main' ? MAIN_FLOORS : WEST_FLOORS;
+  const f = floors.find(x => x.id === id);
+  const amrs = amrData.filter(a => a.bld === bld && a.floorId === id);
+  let html = `<strong>${bld==='main'?'본관':'서관'} ${f.label} — ${f.name}</strong>${f.dept.replace(/\n/g,'<br>')}`;
+  if (amrs.length) {
+    html += `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,68,68,0.08);border:1px solid rgba(255,68,68,0.25);border-radius:5px;">
+      <div style="color:var(--danger);font-size:10px;font-weight:600;margin-bottom:4px;">⚠ 내성균 환자 ${amrs.length}명</div>
+      ${amrs.map(a=>`<div style="font-size:10px;color:#ddd;margin-bottom:2px;">🔴 ${a.room}호 · <span style="color:var(--danger);font-family:'DM Mono',monospace">${a.bug}</span>${a.note?` · ${a.note}`:''}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('info-panel').innerHTML = html;
+  highlightFloor3D(id, bld);
+  cameraTargetY = getFloorY(id, bld) + 0.5;
+}
+
+renderFloorList('main');
+
+// AMR 등록
+document.getElementById('btn-add-amr').addEventListener('click', () => {
+  const bld   = document.getElementById('amr-bld').value;
+  const floor = document.getElementById('amr-floor').value;
+  const room  = document.getElementById('amr-room').value.trim();
+  const bug   = document.getElementById('amr-bug').value;
+  const note  = document.getElementById('amr-note').value.trim();
+  if (!room) { alert('병실 번호를 입력하세요.'); return; }
+
+  const entry = { id: Date.now(), bld, floorId: floor, room, bug, note };
+  amrData.push(entry);
+
+  document.getElementById('amr-room').value = '';
+  document.getElementById('amr-note').value = '';
+
+  renderFloorList(currentBuilding);
+  addAmrMarker3D(entry);
+  updateAmrBanner();
+  updateAmrStats();
+
+  // 잠깐 피드백
+  const btn = document.getElementById('btn-add-amr');
+  btn.textContent = '✅ 등록 완료!';
+  setTimeout(() => btn.textContent = '🦠 내성균 환자 등록', 1500);
+});
+
+// AMR 목록 렌더링
+function renderAmrList() {
+  const entries = document.getElementById('amr-entries');
+  const empty   = document.getElementById('amr-empty');
+  if (!amrData.length) {
+    empty.style.display = 'block'; entries.innerHTML = ''; return;
+  }
+  empty.style.display = 'none';
+  entries.innerHTML = amrData.map(a => {
+    const floors = a.bld==='main' ? MAIN_FLOORS : WEST_FLOORS;
+    const fl = floors.find(f=>f.id===a.floorId);
+    return `<div class="amr-entry" data-id="${a.id}">
+      <div class="amr-entry-left">
+        <div class="amr-entry-room">${a.bld==='main'?'본관':'서관'} ${fl?fl.label:a.floorId} · ${a.room}호</div>
+        <div class="amr-entry-bug">${a.bug}</div>
+        ${a.note ? `<div class="amr-entry-note">${a.note}</div>` : ''}
+      </div>
+      <button class="amr-del" data-id="${a.id}" title="삭제">✕</button>
+    </div>`;
+  }).join('');
+  entries.querySelectorAll('.amr-del').forEach(btn => {
+    btn.addEventListener('click', () => deleteAmr(parseInt(btn.dataset.id)));
+  });
+  updateAmrStats();
+  document.getElementById('amr-stats').classList.toggle('visible', amrData.length > 0);
+}
+
+function deleteAmr(id) {
+  const entry = amrData.find(a => a.id === id);
+  if (entry) removeAmrMarker3D(entry);
+  amrData = amrData.filter(a => a.id !== id);
+  renderAmrList();
+  renderFloorList(currentBuilding);
+  updateAmrBanner();
+  updateAmrStats();
+}
+
+function updateAmrBanner() {
+  const banner = document.getElementById('amr-banner');
+  document.getElementById('banner-count').textContent = amrData.length;
+  banner.classList.toggle('visible', amrData.length > 0);
+  const BUG_STYLE = {
+    'VRE':          {bg:'rgba(255,80,0,0.15)',    border:'rgba(255,80,0,0.6)',    color:'#ff8844'},
+    'CRE':          {bg:'rgba(255,0,80,0.15)',     border:'rgba(255,0,80,0.6)',    color:'#ff4488'},
+    'CPO':          {bg:'rgba(180,0,255,0.15)',    border:'rgba(180,0,255,0.6)',   color:'#cc66ff'},
+    'MRAB':         {bg:'rgba(255,160,0,0.15)',    border:'rgba(255,160,0,0.6)',   color:'#ffaa00'},
+    'MRPA':         {bg:'rgba(255,200,0,0.15)',    border:'rgba(255,200,0,0.6)',   color:'#ffcc00'},
+    'MRSA':         {bg:'rgba(0,200,100,0.15)',    border:'rgba(0,200,100,0.6)',   color:'#00cc66'},
+    'C.Difficile':  {bg:'rgba(0,180,255,0.15)',    border:'rgba(0,180,255,0.6)',   color:'#00b4ff'},
+    'C.auris':      {bg:'rgba(100,200,255,0.15)',  border:'rgba(100,200,255,0.6)', color:'#64c8ff'},
+    '결핵':         {bg:'rgba(255,120,120,0.15)',  border:'rgba(255,120,120,0.6)', color:'#ff7878'},
+    '노로바이러스': {bg:'rgba(150,255,150,0.15)',  border:'rgba(150,255,150,0.6)', color:'#96ff96'},
+    '로타바이러스': {bg:'rgba(180,255,180,0.15)',  border:'rgba(180,255,180,0.6)', color:'#aaffaa'},
+  };
+  const BUG_ORDER = ['VRE','CRE','CPO','MRAB','MRPA','MRSA','C.Difficile','C.auris','결핵','노로바이러스','로타바이러스'];
+  function noteToKey(n) {
+    return n.includes('결핵')     ? '결핵'
+         : n.includes('노로')     ? '노로바이러스'
+         : n.includes('로타')     ? '로타바이러스'
+         : (n.includes('C.Difficile')||n.includes('C.difficile')) ? 'C.Difficile'
+         : n.includes('C.auris') ? 'C.auris'
+         : BUG_ORDER.find(k => n.includes(k)) || n;
+  }
+  const counts = {};
+  (RAW_DATA[DATE_KEYS[currentDateIdx]] || []).forEach(a => {
+    const key = noteToKey(a.note || a.bug);
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const tagEl = document.getElementById('bug-tags');
+  if (!tagEl) return;
+  tagEl.innerHTML = BUG_ORDER.map(bug => {
+    const cnt = counts[bug] || 0;
+    const s = BUG_STYLE[bug];
+    return `<span class="bug-tag" style="background:${s.bg};border-color:${s.border};color:${s.color};opacity:${cnt===0?'0.35':'1'}">${bug} <span class="btcount">${cnt}</span></span>`;
+  }).join('');
+}
+
+function updateAmrStats() {
+  document.getElementById('stat-total').textContent = amrData.length;
+  const floors = new Set(amrData.map(a => a.bld+'_'+a.floorId));
+  document.getElementById('stat-floors').textContent = floors.size;
+  const bugCount = {};
+  amrData.forEach(a => bugCount[a.bug] = (bugCount[a.bug]||0)+1);
+  const topBug = Object.entries(bugCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('stat-topbug').textContent = topBug ? topBug[0] : '—';
+  document.getElementById('amr-stats').classList.toggle('visible', amrData.length > 0);
+}
+
+// ══════════════════════════════════════════
+// Three.js 3D 시각화
+// ══════════════════════════════════════════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x060b14, 0.022);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+const ambient   = new THREE.AmbientLight(0xffffff, 0.4);
+const dirLight  = new THREE.DirectionalLight(0x7ab8ff, 0.8);
+dirLight.position.set(10, 20, 15);
+dirLight.castShadow = true;
+const fillLight = new THREE.DirectionalLight(0x4fffb0, 0.2);
+fillLight.position.set(-10, 5, -10);
+scene.add(ambient, dirLight, fillLight);
+
+const grid = new THREE.GridHelper(50, 25, 0x1e2d45, 0x111827);
+grid.position.y = -0.05;
+scene.add(grid);
+
+// ── 층 메시 ──
+const FLOOR_H   = 0.9;
+const FLOOR_GAP = 0.12;
+const EXPLODE_GAP = 1.3;
+
+function floorYIndex(id) {
+  return ['B3','B2','G1','1F','2F','3F','5F','6F','7F','8F','9F'].indexOf(id);
+}
+function westYIndex(id) {
+  return ['B1','1F','2F','3F','4F','5F','6F','7F','8F'].indexOf(id);
+}
+function getFloorY(floorId, bld) {
+  const idx = bld==='main' ? floorYIndex(floorId) : westYIndex(floorId);
+  return Math.max(idx,0) * (FLOOR_H + FLOOR_GAP);
+}
+
+const mainFloorMeshes = [];
+const westFloorMeshes = [];
+
+function buildFloorMesh(geo, color, x, y) {
+  const mat  = new THREE.MeshPhongMaterial({ color, transparent:true, opacity:0.82, shininess:60, specular:0x224488 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y + FLOOR_H/2, 0);
+  mesh.castShadow = mesh.receiveShadow = true;
+  const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x4488bb, transparent:true, opacity:0.4}));
+  mesh.add(wire);
+  scene.add(mesh);
+  return mesh;
+}
+
+MAIN_FLOORS.forEach(f => {
+  const yi = floorYIndex(f.id);
+  if (yi < 0) return;
+  const y    = yi * (FLOOR_H + FLOOR_GAP);
+  const isUG = ['G1','B2','B3'].includes(f.id);
+  const wA = isUG?7.5:6.5, d = isUG?5.5:5;
+  const wB = isUG?6.5:5.5;
+  const meshA = buildFloorMesh(new THREE.BoxGeometry(wA, FLOOR_H, d), f.color, 2, y);
+  const meshB = buildFloorMesh(new THREE.BoxGeometry(wB, FLOOR_H, d), new THREE.Color(f.color).multiplyScalar(0.7).getHex(), -4, y);
+  meshA.userData = { id:f.id, bld:'main', sub:'A', floor:f };
+  meshB.userData = { id:f.id, bld:'main', sub:'B', floor:f };
+  mainFloorMeshes.push({ id:f.id, meshA, meshB, origY:y, yi, f });
+});
+
+WEST_FLOORS.forEach(f => {
+  const yi = westYIndex(f.id);
+  if (yi < 0) return;
+  const y = yi * (FLOOR_H + FLOOR_GAP);
+  const mesh = buildFloorMesh(new THREE.BoxGeometry(4, FLOOR_H, 4.5), f.color, 11, y);
+  mesh.userData = { id:f.id, bld:'west', floor:f };
+  westFloorMeshes.push({ id:f.id, mesh, origY:y, yi, f });
+});
+
+// 건물 레이블 sprite
+function makeLabel(text, pos) {
+  const c2 = document.createElement('canvas');
+  c2.width=256; c2.height=64;
+  const ctx = c2.getContext('2d');
+  ctx.font='bold 20px sans-serif';
+  ctx.fillStyle='#00c6ff'; ctx.textAlign='center';
+  ctx.fillText(text, 128, 40);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2), transparent:true}));
+  sp.position.copy(pos); sp.scale.set(4, 1, 1);
+  scene.add(sp);
+}
+makeLabel('본관 A동', new THREE.Vector3(2, 13.5, 0));
+makeLabel('본관 B동', new THREE.Vector3(-4, 13.5, 0));
+makeLabel('서관', new THREE.Vector3(11, 11, 0));
+
+// ── AMR 마커 ──
+const amrMarkers = {}; // id -> { sphere, glow, pulse }
+const AMR_COLORS = {
+  MRSA:0xff3333, VRE:0xff6600, ESBL:0xffaa00, CRE:0xff0066,
+  CRPA:0xff44aa, CRAB:0xcc00ff, VRSA:0xff0000, 'MDR-TB':0xff8800, '기타':0xff5555
+};
+
+
+// ══════════════════════════════════════════
+// 병실 위치 기반 3D 좌표 매핑
+// 평면도 픽셀 좌표 → Three.js 공간 좌표 변환
+// ══════════════════════════════════════════
+
+// A동 (center x=2, width=6.5): 방 번호 suffix → {x, z}
+const A_ROOMS_POS = {
+  // 상단행 (복도측, z=+1.2)
+   4: {x: 4.78, z: 1.2},
+   5: {x: 3.76, z: 1.2},
+   6: {x: 2.97, z: 1.2},
+   8: {x: 0.84, z: 1.2},
+   9: {x:-0.12, z: 1.2},
+  10: {x:-0.88, z: 1.2},
+  // 하단행 (외벽측, z=-1.2)
+   1: {x: 2.32, z:-1.2},
+   2: {x: 2.98, z:-1.2},
+   3: {x: 3.76, z:-1.2},
+  12: {x:-0.32, z:-1.2},
+  13: {x: 0.67, z:-1.2},
+};
+
+// B동 (center x=-4, width=5.5): 방 번호 suffix → {x, z}
+const B_ROOMS_POS = {
+  // 상단행 (세탁실/창문측, z=+1.5)
+  21: {x:-2.01, z: 1.5},
+  22: {x:-2.45, z: 1.5},
+  23: {x:-2.89, z: 1.5},
+  // 중간행 (z=+0.3)
+  24: {x:-4.18, z: 0.3},
+  25: {x:-5.27, z: 0.3},
+  26: {x:-6.25, z: 0.3},
+  // 하단행 (외벽측, z=-1.2)
+  27: {x:-5.99, z:-1.2},
+  28: {x:-5.17, z:-1.2},
+  29: {x:-4.34, z:-1.2},
+  30: {x:-3.49, z:-1.2},
+  31: {x:-2.64, z:-1.2},
+  32: {x:-1.72, z:-1.2},
+  33: {x:-0.80, z:-1.2},  // 6F 이상
+  34: {x: 0.12, z:-1.2},
+  35: {x: 1.04, z:-1.2},
+};
+
+// 같은 방에 여러 환자 있을 때 수직 스태킹을 위한 카운터
+const roomStackCounters = {};
+
+// 방 번호로 3D 위치 계산
+function getRoomPos3D(entry) {
+  const m = mainFloorMeshes.find(x => x.id === entry.floorId);
+  if (!m) return null;
+  const mesh = (entry.sub === 'A') ? m.meshA : m.meshB;
+  // 층 중심 y (박스 내부 중간) + 약간 위 → 같은 층 박스 안에 표시
+  const meshCenterY = mesh.position.y;
+
+  // 같은 방 스태킹 인덱스
+  const stackKey = entry.floorId + '_' + entry.room;
+  const stackIdx = roomStackCounters[stackKey] || 0;
+  roomStackCounters[stackKey] = stackIdx + 1;
+
+  // Y: 층 중심보다 약간 위 + 스태킹 (FLOOR_H=0.9이므로 ±0.45 범위 내)
+  const posY = meshCenterY + 0.15 + stackIdx * 0.28;
+
+  const suffix = parseInt(entry.room) % 100;
+
+  // 특수 병실 처리 (ICU: room='01', 음압격리: room='02' 등)
+  if (isNaN(suffix) || entry.room === '01' || entry.room === '02') {
+    const baseX = (entry.sub === 'A') ? 2 : -4;
+    return new THREE.Vector3(baseX, posY, 0);
+  }
+
+  if (entry.sub === 'A' && A_ROOMS_POS[suffix]) {
+    const p = A_ROOMS_POS[suffix];
+    return new THREE.Vector3(p.x, posY, p.z);
+  }
+  if (entry.sub === 'B' && B_ROOMS_POS[suffix]) {
+    const p = B_ROOMS_POS[suffix];
+    return new THREE.Vector3(p.x, posY, p.z);
+  }
+
+  // 폴백: 동 중심에 표시
+  const baseX = (entry.sub === 'A') ? 2 : -4;
+  return new THREE.Vector3(baseX, posY, 0);
+}
+
+function getFloorMeshCenter(bld, floorId, sub) {
+  // 해당 층 메시의 월드 위치 중심 반환
+  if (bld === 'main') {
+    const m = mainFloorMeshes.find(x => x.id === floorId);
+    if (m) {
+      // sub='A' → A동(x:2), sub='B' → B동(x:-4)
+      const x = (sub === 'A') ? 2 : -4;
+      const mesh = (sub === 'A') ? m.meshA : m.meshB;
+      return new THREE.Vector3(x, mesh.position.y + FLOOR_H/2 + 0.15, 0);
+    }
+  } else {
+    const m = westFloorMeshes.find(x => x.id === floorId);
+    if (m) return new THREE.Vector3(11, m.mesh.position.y + FLOOR_H/2 + 0.15, 0);
+  }
+  return new THREE.Vector3(0, 0, 0);
+}
+
+// 층에 이미 마커가 있으면 위치를 약간 분산 (A/B동 각각 독립 카운트)
+function getMarkerOffset(bld, floorId, sub) {
+  const existing = amrData.filter(a => a.bld===bld && a.floorId===floorId && a.sub===sub && amrMarkers[a.id]);
+  const n = existing.length;
+  const angles = [0, Math.PI*2/3, Math.PI*4/3, Math.PI/3, Math.PI, Math.PI*5/3];
+  const angle  = angles[n % 6] || (n * 1.1);
+  const r = n === 0 ? 0 : 1.0 + Math.floor(n/6)*0.5;
+  return new THREE.Vector3(Math.cos(angle)*r, 0, Math.sin(angle)*r);
+}
+
+function addAmrMarker3D(entry) {
+  // 병실 위치 기반 좌표 우선, 없으면 기존 방사형 배치
+  let pos;
+  if (entry.bld === 'main') {
+    pos = getRoomPos3D(entry);
+  }
+  if (!pos) {
+    const base   = getFloorMeshCenter(entry.bld, entry.floorId, entry.sub || 'B');
+    const offset = getMarkerOffset(entry.bld, entry.floorId, entry.sub || 'B');
+    pos = base.clone().add(offset);
+  }
+  const base = getFloorMeshCenter(entry.bld, entry.floorId, entry.sub || 'B');
+  const color  = AMR_COLORS[entry.bug] || 0xff4444;
+
+  // 격리환자 마커는 더 크고 밝게
+  const isIso = entry.bug === 'CONTACT' || entry.bug === 'AIRBORNE';
+  const r = isIso ? 0.30 : 0.22;
+  const ei = isIso ? 0.9 : 0.6;
+
+  // 메인 구
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 16, 16),
+    new THREE.MeshPhongMaterial({ color, emissive:color, emissiveIntensity:ei, shininess:100 })
+  );
+  sphere.position.copy(pos);
+  sphere.userData = { isAmr:true, amrId:entry.id, entry };
+  scene.add(sphere);
+
+  // 글로우 링 (격리환자는 더 강하게)
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(isIso ? 0.55 : 0.38, 16, 16),
+    new THREE.MeshBasicMaterial({ color, transparent:true, opacity: isIso ? 0.28 : 0.18, side:THREE.BackSide })
+  );
+  glow.position.copy(pos);
+  scene.add(glow);
+
+  // 수직 막대(층 연결선)
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(pos.x, base.y - FLOOR_H/2 + 0.05, pos.z),
+    new THREE.Vector3(pos.x, pos.y, pos.z)
+  ]);
+  const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color, transparent:true, opacity:0.6}));
+  scene.add(line);
+
+  amrMarkers[entry.id] = { sphere, glow, line };
+  updateFloorAmrTint(entry.bld, entry.floorId);
+}
+
+function removeAmrMarker3D(entry) {
+  const m = amrMarkers[entry.id];
+  if (m) {
+    scene.remove(m.sphere);
+    scene.remove(m.glow);
+    scene.remove(m.line);
+    delete amrMarkers[entry.id];
+  }
+  updateFloorAmrTint(entry.bld, entry.floorId);
+}
+
+function updateFloorAmrTint(bld, floorId) {
+  // 해당 층에 AMR 환자 수에 따라 건물 테두리 색 변경
+  const count = amrData.filter(a => a.bld===bld && a.floorId===floorId).length;
+  if (bld === 'main') {
+    const m = mainFloorMeshes.find(x => x.id === floorId);
+    if (m) {
+      const tint = count > 2 ? 0x441100 : count > 0 ? 0x220800 : 0x000000;
+      m.meshA.material.emissive.setHex(tint);
+      m.meshB.material.emissive.setHex(tint);
+    }
+  } else {
+    const m = westFloorMeshes.find(x => x.id === floorId);
+    if (m) {
+      const tint = count > 2 ? 0x441100 : count > 0 ? 0x220800 : 0x000000;
+      m.mesh.material.emissive.setHex(tint);
+    }
+  }
+}
+
+// ── 층 하이라이트 ──
+function highlightFloor3D(id, bld) {
+  mainFloorMeshes.forEach(({meshA, meshB, f}) => {
+    const amrs = amrData.filter(a=>a.bld==='main'&&a.floorId===f.id);
+    const tint = amrs.length > 2 ? 0x441100 : amrs.length > 0 ? 0x220800 : 0x000000;
+    meshA.material.emissive.setHex(tint);
+    meshB.material.emissive.setHex(tint);
+    meshA.material.opacity = 0.82; meshB.material.opacity = 0.82;
+  });
+  westFloorMeshes.forEach(({mesh, f}) => {
+    const amrs = amrData.filter(a=>a.bld==='west'&&a.floorId===f.id);
+    const tint = amrs.length > 0 ? 0x220800 : 0x000000;
+    mesh.material.emissive.setHex(tint); mesh.material.opacity = 0.82;
+  });
+  if (!id) return;
+  if (bld === 'main') {
+    const m = mainFloorMeshes.find(x=>x.id===id);
+    if (m) { m.meshA.material.emissive.setHex(0x224488); m.meshA.material.opacity=1; m.meshB.material.emissive.setHex(0x224488); m.meshB.material.opacity=1; }
+  } else {
+    const m = westFloorMeshes.find(x=>x.id===id);
+    if (m) { m.mesh.material.emissive.setHex(0x224488); m.mesh.material.opacity=1; }
+  }
+}
+
+function updateBuildingVisibility() {
+  const sm = currentBuilding==='main';
+  const sw = currentBuilding==='west';
+  mainFloorMeshes.forEach(({meshA,meshB}) => { meshA.material.opacity=sm?0.82:0.18; meshB.material.opacity=sm?0.82:0.18; });
+  westFloorMeshes.forEach(({mesh}) => { mesh.material.opacity=sw?0.82:0.18; });
+}
+
+// ── 폭발 ──
+let exploded = false;
+const animations = [];
+function animateTo(obj, axis, target) {
+  const i = animations.findIndex(a=>a.obj===obj&&a.axis===axis);
+  if(i>=0) animations.splice(i,1);
+  animations.push({obj, axis, target, start:obj.position[axis], t:0});
+}
+function toggleExplode() {
+  exploded = !exploded;
+  const gap = exploded ? EXPLODE_GAP : FLOOR_GAP;
+  mainFloorMeshes.forEach(({meshA,meshB,yi}) => {
+    const ny = yi*(FLOOR_H+gap);
+    animateTo(meshA,'y',ny+FLOOR_H/2); animateTo(meshB,'y',ny+FLOOR_H/2);
+  });
+  westFloorMeshes.forEach(({mesh,yi}) => {
+    const ny = yi*(FLOOR_H+gap);
+    animateTo(mesh,'y',ny+FLOOR_H/2);
+  });
+  // 마커도 이동 (폭발 시 해당 층 높이 추적)
+  amrData.forEach(a => {
+    const m = amrMarkers[a.id];
+    if (!m) return;
+    const yi = a.bld==='main' ? floorYIndex(a.floorId) : westYIndex(a.floorId);
+    if (yi < 0) return;
+    const newBaseY = yi*(FLOOR_H+gap) + FLOOR_H/2 + 0.15;
+    const cur = m.sphere.position;
+    animateTo(m.sphere,'y',newBaseY);
+    animateTo(m.glow,'y',newBaseY);
+    // line 재생성 대신 y만 이동(간단 처리)
+  });
+}
+
+// ── 마우스 ──
+let isDown=false, lastX=0, lastY=0;
+let rotY=0.4, rotX=0.3, zoom=28;
+let cameraTargetY=5, currentCameraY=5;
+
+const canvasArea = document.getElementById('canvas-area');
+canvasArea.addEventListener('mousedown', e=>{isDown=true;lastX=e.clientX;lastY=e.clientY;});
+canvasArea.addEventListener('mouseup',   ()=>isDown=false);
+canvasArea.addEventListener('mouseleave',()=>isDown=false);
+canvasArea.addEventListener('mousemove', e=>{
+  if(isDown){ rotY+=(e.clientX-lastX)*0.008; rotX+=(e.clientY-lastY)*0.006; rotX=Math.max(-0.8,Math.min(1.2,rotX)); lastX=e.clientX;lastY=e.clientY; }
+  else checkHover(e);
+});
+canvasArea.addEventListener('wheel', e=>{ zoom=Math.max(8,Math.min(65,zoom+e.deltaY*0.05)); });
+canvasArea.addEventListener('click', e=>{
+  const hit = raycast(e);
+  if (!hit) return;
+  const ud = hit.object.userData;
+  if (ud.isAmr) {
+    // AMR 마커 클릭
+    const entry = ud.entry;
+    const floors = entry.bld==='main'?MAIN_FLOORS:WEST_FLOORS;
+    const fl = floors.find(f=>f.id===entry.floorId);
+    document.getElementById('info-panel').innerHTML =
+      `<strong style="color:var(--danger)">🔴 내성균 환자 · ${entry.bld==='main'?'본관':'서관'} ${fl?fl.label:entry.floorId}</strong>
+       병실: <span style="color:var(--warn)">${entry.room}호</span><br>
+       균종: <span style="color:var(--danger);font-family:'DM Mono',monospace;font-weight:600">${entry.bug}</span><br>
+       ${entry.note?`비고: ${entry.note}`:''}`;
+  } else if (ud.id) {
+    document.querySelectorAll('.btab').forEach(t=>t.classList.remove('active'));
+    const bld = ud.bld;
+    document.querySelector(`.btab[data-bld="${bld}"]`).classList.add('active');
+    currentBuilding=bld; renderFloorList(bld); selectFloor(ud.id,bld);
+  }
+});
+
+canvasArea.addEventListener('touchstart',e=>{isDown=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;},{passive:true});
+canvasArea.addEventListener('touchend',()=>isDown=false);
+canvasArea.addEventListener('touchmove',e=>{
+  if(!isDown)return;
+  rotY+=(e.touches[0].clientX-lastX)*0.008; rotX+=(e.touches[0].clientY-lastY)*0.006;
+  rotX=Math.max(-0.8,Math.min(1.2,rotX)); lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
+},{passive:true});
+
+function raycast(e) {
+  const rect = canvas.getBoundingClientRect();
+  const mx = ((e.clientX-rect.left)/rect.width)*2-1;
+  const my = -((e.clientY-rect.top)/rect.height)*2+1;
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera({x:mx,y:my},camera);
+  const allObjs = [
+    ...mainFloorMeshes.map(m=>m.meshA), ...mainFloorMeshes.map(m=>m.meshB),
+    ...westFloorMeshes.map(m=>m.mesh),
+    ...Object.values(amrMarkers).map(m=>m.sphere)
+  ];
+  const hits = ray.intersectObjects(allObjs);
+  return hits.length > 0 ? hits[0] : null;
+}
+
+function checkHover(e) {
+  const hit = raycast(e);
+  const tip = document.getElementById('tooltip');
+  if (hit) {
+    const ud = hit.object.userData;
+    const rect = canvasArea.getBoundingClientRect();
+    tip.style.left=(e.clientX-rect.left+14)+'px';
+    tip.style.top= (e.clientY-rect.top -10)+'px';
+    tip.style.display='block';
+    canvas.style.cursor='pointer';
+    if (ud.isAmr) {
+      tip.className='amr-tip';
+      const floors = ud.entry.bld==='main'?MAIN_FLOORS:WEST_FLOORS;
+      const fl = floors.find(f=>f.id===ud.entry.floorId);
+      const isoIcon = ud.entry.bug==='CONTACT' ? '🔴 접촉주의' : ud.entry.bug==='AIRBORNE' ? '🟠 공기주의' : '🔴 내성균';
+      const subLabel = ud.entry.sub ? ` ${ud.entry.sub}동` : '';
+      tip.innerHTML=`<strong>${isoIcon}</strong><span class="tip-bug">${ud.entry.note||ud.entry.bug}</span><br><span class="tip-room">${ud.entry.bld==='main'?'본관':'서관'} ${fl?fl.label:ud.entry.floorId}${subLabel} · ${ud.entry.room}호</span>`;
+    } else if (ud.id) {
+      tip.className='';
+      const f=ud.floor;
+      const amrs=amrData.filter(a=>a.bld===ud.bld&&a.floorId===ud.id);
+      tip.innerHTML=`<strong>${ud.bld==='main'?'본관':'서관'} ${f.label}</strong>${f.dept.replace(/\n/g,'<br>')}${amrs.length?`<br><span style="color:var(--danger);font-size:10px;margin-top:3px;display:block">⚠ 내성균 ${amrs.length}건</span>`:''}`;
+    }
+  } else {
+    tip.style.display='none'; canvas.style.cursor='default';
+  }
+}
+
+// 버튼
+document.getElementById('resetBtn').addEventListener('click',()=>{ rotY=0.4;rotX=0.3;zoom=28;cameraTargetY=5; if(exploded)toggleExplode(); });
+document.getElementById('explodeBtn').addEventListener('click',toggleExplode);
+document.getElementById('zoomInBtn').addEventListener('click',()=>zoom=Math.max(8,zoom-5));
+document.getElementById('zoomOutBtn').addEventListener('click',()=>zoom=Math.min(65,zoom+5));
+
+// 리사이즈
+function resize() {
+  const w=canvasArea.clientWidth, h=canvasArea.clientHeight;
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize); resize();
+
+// ── 루프 ──
+const clock = new THREE.Clock();
+let t_global = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  t_global += dt;
+
+  // 이동 애니메이션
+  for(let i=animations.length-1;i>=0;i--){
+    const a=animations[i]; a.t+=dt*3;
+    const e=Math.min(1,a.t); const ease=1-Math.pow(1-e,3);
+    a.obj.position[a.axis]=a.start+(a.target-a.start)*ease;
+    if(e>=1) animations.splice(i,1);
+  }
+
+  // AMR 마커 펄스
+  Object.values(amrMarkers).forEach(m=>{
+    const s=1+0.12*Math.sin(t_global*3+m.sphere.position.x);
+    m.sphere.scale.setScalar(s);
+    m.glow.material.opacity=0.10+0.10*Math.sin(t_global*2.5);
+    m.glow.scale.setScalar(1+0.15*Math.sin(t_global*2));
+  });
+
+  // 카메라
+  currentCameraY+=(cameraTargetY-currentCameraY)*0.05;
+  const cx=Math.sin(rotY)*Math.cos(rotX)*zoom;
+  const cy=Math.sin(rotX)*zoom+currentCameraY;
+  const cz=Math.cos(rotY)*Math.cos(rotX)*zoom;
+  camera.position.set(cx,cy+3,cz);
+  camera.lookAt(0,currentCameraY+2,0);
+  renderer.render(scene,camera);
+}
+// ══════════════════════════════════════════
+// 격리환자 자동 주입 (2026-02-27 기준)
+// 접촉주의(C) → 붉은 점, 공기주의(A) → 주황 점
+// ══════════════════════════════════════════
+const DATE_DATA = {
+  '2026-02-26': [
+    {id:'d26_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d26_1',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d26_2',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d26_3',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d26_4',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d26_5',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d26_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d26_7',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d26_8',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d26_9',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d26_10',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d26_11',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d26_12',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d26_13',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d26_14',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d26_15',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d26_16',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d26_17',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d26_18',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d26_19',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d26_20',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d26_21',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d26_22',bld:'main',floorId:'5F',room:'510',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d26_23',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d26_24',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d26_25',bld:'main',floorId:'8F',room:'823',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d26_26',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+  ],
+  '2026-02-27': [
+    {id:'d27_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d27_1',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d27_2',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d27_3',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d27_4',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d27_5',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d27_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d27_7',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d27_8',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d27_9',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d27_10',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d27_11',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d27_12',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d27_13',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d27_14',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d27_15',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d27_16',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d27_17',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d27_18',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d27_19',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d27_20',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d27_21',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d27_22',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d27_23',bld:'main',floorId:'5F',room:'510',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d27_24',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d27_25',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d27_26',bld:'main',floorId:'8F',room:'823',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d27_27',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+  ],
+  '2026-03-02': [
+    {id:'d302_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d302_1',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d302_2',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d302_3',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d302_4',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d302_5',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d302_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d302_7',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d302_8',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d302_9',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d302_10',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d302_11',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d302_12',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d302_13',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d302_14',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d302_15',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d302_16',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d302_17',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d302_18',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d302_19',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d302_20',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d302_21',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d302_22',bld:'main',floorId:'5F',room:'510',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d302_23',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d302_24',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d302_25',bld:'main',floorId:'8F',room:'823',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d302_26',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d302_27',bld:'main',floorId:'3F',room:'330',sub:'B',bug:'CONTACT',note:'노로바이러스 감염증'},
+  ],
+  '2026-03-03': [
+    {id:'d303_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d303_1',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d303_2',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d303_3',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d303_4',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d303_5',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d303_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d303_7',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d303_8',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d303_9',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d303_10',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d303_11',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d303_12',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d303_13',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d303_14',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d303_15',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d303_16',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d303_17',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d303_18',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d303_19',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d303_20',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d303_21',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d303_22',bld:'main',floorId:'5F',room:'510',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d303_23',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d303_24',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d303_25',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d303_26',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d303_27',bld:'main',floorId:'3F',room:'330',sub:'B',bug:'CONTACT',note:'노로바이러스 감염증'},
+  ],
+  '2026-03-04': [
+    {id:'d304_0',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d304_1',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d304_2',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d304_3',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d304_4',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d304_5',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d304_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d304_7',bld:'main',floorId:'5F',room:'521',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d304_8',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d304_9',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d304_10',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d304_11',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d304_12',bld:'main',floorId:'5F',room:'510',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d304_13',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d304_14',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d304_15',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d304_16',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d304_17',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d304_18',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d304_19',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d304_20',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d304_21',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d304_22',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d304_23',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d304_24',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d304_25',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d304_26',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d304_27',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d304_28',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+  ],
+  '2026-03-05': [
+    {id:'d305_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d305_1',bld:'main',floorId:'5F',room:'521',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d305_2',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d305_3',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d305_4',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d305_5',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d305_6',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d305_7',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d305_8',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d305_9',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d305_10',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_11',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d305_12',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d305_13',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d305_14',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_15',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d305_16',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d305_17',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d305_18',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d305_19',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_20',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_21',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d305_22',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d305_23',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_24',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d305_25',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d305_26',bld:'main',floorId:'3F',room:'324',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_27',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d305_28',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d305_29',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d305_30',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d305_31',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d305_32',bld:'main',floorId:'6F',room:'635',sub:'B',bug:'CONTACT',note:'MRAB'},
+  ],
+  '2026-03-06': [
+    {id:'d306_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d306_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d306_2',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d306_3',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d306_4',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d306_5',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d306_6',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d306_7',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d306_8',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d306_9',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_10',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d306_11',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d306_12',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d306_13',bld:'main',floorId:'3F',room:'328',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_14',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d306_15',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d306_16',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d306_17',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d306_18',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_19',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_20',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d306_21',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d306_22',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_23',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d306_24',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d306_25',bld:'main',floorId:'3F',room:'325',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_26',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d306_27',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d306_28',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d306_29',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d306_30',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d306_31',bld:'main',floorId:'7F',room:'725',sub:'B',bug:'CONTACT',note:'노로바이러스 감염증'},
+    {id:'d306_32',bld:'main',floorId:'6F',room:'635',sub:'B',bug:'CONTACT',note:'VRE'},
+  ],
+  '2026-03-09': [
+    {id:'d309_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d309_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d309_2',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d309_3',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d309_4',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d309_5',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d309_6',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d309_7',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d309_8',bld:'main',floorId:'3F',room:'320',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d309_9',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_10',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d309_11',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d309_12',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d309_13',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d309_14',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_15',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d309_16',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d309_17',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_18',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d309_19',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_20',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d309_21',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_22',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_23',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_24',bld:'main',floorId:'6F',room:'609',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d309_25',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d309_26',bld:'main',floorId:'3F',room:'325',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_27',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d309_28',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d309_29',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d309_30',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d309_31',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d309_32',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'AIRBORNE',note:'호흡기결핵'},
+  ],
+  '2026-03-10': [
+    {id:'d310_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d310_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d310_2',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d310_3',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d310_4',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d310_5',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d310_6',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d310_7',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d310_8',bld:'main',floorId:'3F',room:'320',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d310_9',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_10',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d310_11',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d310_12',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d310_13',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_14',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d310_15',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d310_16',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d310_17',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_18',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_19',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d310_20',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d310_21',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_22',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_23',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_24',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d310_25',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d310_26',bld:'main',floorId:'3F',room:'325',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_27',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_28',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d310_29',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d310_30',bld:'main',floorId:'6F',room:'635',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d310_31',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d310_32',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'AIRBORNE',note:'호흡기결핵'},
+  ],
+  '2026-03-11': [
+    {id:'d311_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d311_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d311_2',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d311_3',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d311_4',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d311_5',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d311_6',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d311_7',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'MRPA'},
+    {id:'d311_8',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_9',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d311_10',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d311_11',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d311_12',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_13',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d311_14',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d311_15',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_16',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d311_17',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_18',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d311_19',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_20',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_21',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_22',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d311_23',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d311_24',bld:'main',floorId:'3F',room:'325',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_25',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_26',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d311_27',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d311_28',bld:'main',floorId:'2F',room:'02',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_29',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d311_30',bld:'main',floorId:'5F',room:'501',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d311_31',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d311_32',bld:'main',floorId:'6F',room:'625',sub:'B',bug:'CONTACT',note:'로타바이러스'},
+  ],
+  '2026-03-12': [
+    {id:'d312_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d312_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d312_2',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d312_3',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d312_4',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d312_5',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d312_6',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d312_7',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_8',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d312_9',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d312_10',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d312_11',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_12',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d312_13',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d312_14',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_15',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d312_16',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_17',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d312_18',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_19',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_20',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_21',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d312_22',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d312_23',bld:'main',floorId:'3F',room:'325',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_24',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_25',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d312_26',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d312_27',bld:'main',floorId:'2F',room:'02',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_28',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d312_29',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_30',bld:'main',floorId:'5F',room:'501',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d312_31',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d312_32',bld:'main',floorId:'5F',room:'524',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d312_33',bld:'main',floorId:'8F',room:'807',sub:'A',bug:'CONTACT',note:'VRE'},
+  ],
+  '2026-03-13': [
+    {id:'d313_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d313_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d313_2',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d313_3',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d313_4',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d313_5',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d313_6',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_7',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d313_8',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d313_9',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'CPO'},
+    {id:'d313_10',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_11',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d313_12',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d313_13',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_14',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d313_15',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_16',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d313_17',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_18',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_19',bld:'main',floorId:'5F',room:'527',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_20',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d313_21',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d313_22',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_23',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d313_24',bld:'main',floorId:'2F',room:'02',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_25',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d313_26',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_27',bld:'main',floorId:'5F',room:'501',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d313_28',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d313_29',bld:'main',floorId:'8F',room:'801',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d313_30',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'CPO'},
+  ],
+  '2026-03-16': [
+    {id:'d316_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d316_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d316_2',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d316_3',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_4',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d316_5',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d316_6',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_7',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_8',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d316_9',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d316_10',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_11',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d316_12',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d316_13',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_14',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d316_15',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_16',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d316_17',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_18',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_19',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d316_20',bld:'main',floorId:'8F',room:'802',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d316_21',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_22',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d316_23',bld:'main',floorId:'2F',room:'02',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_24',bld:'main',floorId:'6F',room:'622',sub:'B',bug:'AIRBORNE',note:'결핵 의심'},
+    {id:'d316_25',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_26',bld:'main',floorId:'5F',room:'501',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_27',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_28',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d316_29',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRSA'},
+    {id:'d316_30',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d316_31',bld:'main',floorId:'8F',room:'801',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d316_32',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d316_33',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+  ],
+  '2026-03-17': [
+    {id:'d317_0',bld:'main',floorId:'5F',room:'502',sub:'A',bug:'CONTACT',note:'C.auris'},
+    {id:'d317_1',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'VRE'},
+    {id:'d317_2',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'MRSA'},
+    {id:'d317_3',bld:'main',floorId:'5F',room:'508',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_4',bld:'main',floorId:'5F',room:'504',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d317_5',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d317_6',bld:'main',floorId:'5F',room:'509',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_7',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_8',bld:'main',floorId:'6F',room:'605',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d317_9',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d317_10',bld:'main',floorId:'5F',room:'532',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_11',bld:'main',floorId:'6F',room:'613',sub:'A',bug:'CONTACT',note:'MRPA'},
+    {id:'d317_12',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRAB'},
+    {id:'d317_13',bld:'main',floorId:'5F',room:'513',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_14',bld:'main',floorId:'6F',room:'621',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d317_15',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_16',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_17',bld:'main',floorId:'7F',room:'704',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d317_18',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_19',bld:'main',floorId:'5F',room:'512',sub:'A',bug:'CONTACT',note:'MRAB'},
+    {id:'d317_20',bld:'main',floorId:'8F',room:'822',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d317_21',bld:'main',floorId:'8F',room:'802',sub:'A',bug:'CONTACT',note:'VRE'},
+    {id:'d317_22',bld:'main',floorId:'6F',room:'634',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_23',bld:'main',floorId:'5F',room:'505',sub:'A',bug:'CONTACT',note:'CRE'},
+    {id:'d317_24',bld:'main',floorId:'2F',room:'02',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_25',bld:'main',floorId:'3F',room:'326',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_26',bld:'main',floorId:'5F',room:'501',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_27',bld:'main',floorId:'2F',room:'01',sub:'B',bug:'CONTACT',note:'CRE'},
+    {id:'d317_28',bld:'main',floorId:'6F',room:'604',sub:'A',bug:'AIRBORNE',note:'호흡기결핵'},
+    {id:'d317_29',bld:'main',floorId:'5F',room:'530',sub:'B',bug:'CONTACT',note:'MRSA'},
+    {id:'d317_30',bld:'main',floorId:'7F',room:'703',sub:'A',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_31',bld:'main',floorId:'6F',room:'633',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_32',bld:'main',floorId:'5F',room:'523',sub:'B',bug:'CONTACT',note:'CPO'},
+    {id:'d317_33',bld:'main',floorId:'8F',room:'823',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_34',bld:'main',floorId:'6F',room:'632',sub:'B',bug:'CONTACT',note:'C.Difficile'},
+    {id:'d317_35',bld:'main',floorId:'6F',room:'608',sub:'A',bug:'CONTACT',note:'MRSA'},
+  ],
+};
+const RAW_DATA = {
+  '2026-02-26': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "VRE"}],
+  '2026-02-27': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "VRE"}],
+  '2026-03-02': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}],
+  '2026-03-03': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}],
+  '2026-03-04': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRSA"}],
+  '2026-03-05': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "VRE"}],
+  '2026-03-06': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "VRE"}],
+  '2026-03-09': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}],
+  '2026-03-10': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}],
+  '2026-03-11': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "로타바이러스"}],
+  '2026-03-12': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "VRE"}],
+  '2026-03-13': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "로타바이러스"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}],
+  '2026-03-16': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "로타바이러스"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "결핵 의심"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "MRSA"}],
+  '2026-03-17': [{"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "로타바이러스"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.auris"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRPA"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "노로바이러스 감염증"}, {"bug": "CONTACT", "note": "MRAB"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "VRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "AIRBORNE", "note": "호흡기결핵"}, {"bug": "CONTACT", "note": "MRSA"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "CRE"}, {"bug": "CONTACT", "note": "CPO"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "C.Difficile"}, {"bug": "CONTACT", "note": "MRSA"}],
+};
+const DATE_KEYS = Object.keys(DATE_DATA);
+let currentDateIdx = 0; // 가장 오래된 날짜부터
+
+
+// 접촉/공기 색상 추가
+AMR_COLORS['CONTACT'] = 0xff2222;
+AMR_COLORS['AIRBORNE'] = 0xff8800;
+
+// 날짜 데이터 로드 함수
+function loadDateData(idx) {
+  // 기존 마커 전체 제거
+  amrData.forEach(entry => removeAmrMarker3D(entry));
+  amrData = [];
+  // 방별 스태킹 카운터 초기화
+  Object.keys(roomStackCounters).forEach(k => delete roomStackCounters[k]);
+
+  // 새 날짜 데이터 주입
+  const key = DATE_KEYS[idx];
+  DATE_DATA[key].forEach(entry => {
+    amrData.push(entry);
+    addAmrMarker3D(entry);
+  });
+
+  // UI 갱신
+  document.getElementById('date-label3d').textContent = key + ' 기준';
+  document.getElementById('btn-prev-date').disabled = (idx === 0);
+  document.getElementById('btn-next-date').disabled = (idx === DATE_KEYS.length - 1);
+  renderFloorList('main');
+  updateAmrBanner();
+  updateAmrStats();
+}
+
+// 날짜 버튼 이벤트
+document.getElementById('btn-prev-date').addEventListener('click', () => {
+  if (currentDateIdx > 0) { currentDateIdx--; loadDateData(currentDateIdx); }
+});
+document.getElementById('btn-next-date').addEventListener('click', () => {
+  if (currentDateIdx < DATE_KEYS.length - 1) { currentDateIdx++; loadDateData(currentDateIdx); }
+});
+
+// 초기 로드 (최신 날짜)
+loadDateData(currentDateIdx);
+
+animate();
+</script>
+</body>
+</html>
